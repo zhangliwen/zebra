@@ -29,10 +29,17 @@ use zebra_chain;
 pub enum Message {
     /// A `version` message.
     ///
+    /// Note that although this is called `version` in Bitcoin, its role is really
+    /// analogous to a `ClientHello` message in TLS, used to begin a handshake, and
+    /// is distinct from a simple version number.
+    ///
     /// [Bitcoin reference](https://en.bitcoin.it/wiki/Protocol_documentation#version)
     Version {
+        /// The network version number supported by the sender.
         version: Version,
+        /// The network services advertised by the sender.
         services: Services,
+        /// The time when the version message was sent.
         timestamp: Timestamp,
         address_receiving: NetworkAddress,
         address_from: NetworkAddress,
