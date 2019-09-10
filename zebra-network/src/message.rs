@@ -163,7 +163,7 @@ pub enum Message {
 // something generic over stdlib Read and Write traits, or over async versions
 // of those traits?
 
-/// Identifies protocol version being used by the node.
+/// A protocol version magic number.
 pub struct Version(pub u32);
 
 // Tower provides utilities for service discovery, so this might go
@@ -174,6 +174,5 @@ pub struct Timestamp(pub i64);
 
 pub struct NetworkAddress(pub Services, pub SocketAddr);
 
-/// Nonces as needed in Ping and Pong messages as well as possibly
-/// version negotiation.
+/// A nonce used in the networking layer to identify messages.
 pub struct Nonce(pub u64);
