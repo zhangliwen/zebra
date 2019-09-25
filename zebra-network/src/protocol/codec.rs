@@ -126,7 +126,7 @@ impl Encoder for Codec {
             GetBlocks { .. } => b"getblocks\0\0\0",
             Headers { .. } => b"headers\0\0\0\0\0",
             GetHeaders { .. } => b"getheaders\0\0",
-            Inventory { .. } => b"inv\0\0\0\0\0\0\0\0\0", // XXX Inventory -> Inv ?
+            Inv { .. } => b"inv\0\0\0\0\0\0\0\0\0",
             GetData { .. } => b"getdata\0\0\0\0\0",
             NotFound { .. } => b"notfound\0\0\0\0",
             Tx { .. } => b"tx\0\0\0\0\0\0\0\0\0\0",
