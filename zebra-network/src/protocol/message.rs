@@ -7,7 +7,8 @@ use chrono::{DateTime, Utc};
 use zebra_chain::{transaction::Transaction, types::BlockHeight};
 
 use crate::meta_addr::MetaAddr;
-use crate::types::*;
+
+use super::types::*;
 
 /// A Bitcoin-like network message for the Zcash protocol.
 ///
