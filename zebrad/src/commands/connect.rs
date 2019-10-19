@@ -149,6 +149,7 @@ impl ConnectCmd {
 
         warn!(peers.len = peers.len(), "beginning phase 2");
         drop(peer_set);
+        tokio::timer::delay_for(std::time::Duration::from_secs(10)).await;
 
         config.initial_peers = peers;
         let (mut peer_set, _address_book) = zebra_network::init(config, node);

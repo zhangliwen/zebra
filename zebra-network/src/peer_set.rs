@@ -112,7 +112,7 @@ async fn add_initial_peers<S>(
     S: Service<(TcpStream, SocketAddr), Response = PeerClient, Error = BoxedStdError> + Clone,
     S::Future: Send + 'static,
 {
-    info!(?initial_peers, "Connecting to initial peer set");
+    info!(initial_peers.len = initial_peers.len(), "Connecting to initial peer set");
     let mut handshakes = initial_peers
         .into_iter()
         .map(|addr| {
@@ -126,6 +126,11 @@ async fn add_initial_peers<S>(
         })
         .collect::<FuturesUnordered<_>>();
     while let Some(handshake_result) = handshakes.next().await {
+        if let Ok(Change::Insert(ref addr, _)) = handshake_result {
+            info!(?addr, "finished handshake with peer");
+        } else {
+            info!("failed to connect to peer");
+        }
         let _ = tx.send(handshake_result).await;
     }
 }
