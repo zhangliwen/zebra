@@ -156,6 +156,11 @@ impl ConnectCmd {
         info!("waiting for peer_set ready");
         peer_set.ready().await.map_err(Error::from_boxed_compat)?;
 
+        for _ in 0..240usize {
+            tokio::timer::delay_for(std::time::Duration::from_millis(250)).await;
+            let _ = peer_set.ready().await;
+        }
+
         info!("peer_set became ready, constructing addr requests");
 
         let mut addr_reqs = FuturesUnordered::new();
