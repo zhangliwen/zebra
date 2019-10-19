@@ -108,7 +108,7 @@ impl ConnectCmd {
             addrs.into_iter().map(|meta| meta.addr).collect::<Vec<_>>()
         };
 
-        let (mut peer_set, address_book) = zebra_network::init(config, node);
+        let (mut peer_set, _address_book) = zebra_network::init(config.clone(), node.clone());
 
         info!("waiting for peer_set ready");
         peer_set.ready().await.map_err(Error::from_boxed_compat)?;
@@ -119,7 +119,7 @@ impl ConnectCmd {
         use futures::stream::{FuturesUnordered, StreamExt};
 
         let mut addr_reqs = FuturesUnordered::new();
-        for i in 0..10usize {
+        for i in 0..20usize {
             info!(i, "awaiting peer_set ready");
             peer_set.ready().await.map_err(Error::from_boxed_compat)?;
             info!(i, "calling peer_set");
@@ -127,7 +127,13 @@ impl ConnectCmd {
         }
 
         let mut all_addrs = AddressBook::default();
-        while let Some(Ok(Response::Peers(addrs))) = addr_reqs.next().await {
+        while let Some(rsp) = addr_reqs.next().await {
+            let addrs = if let Ok(Response::Peers(addrs)) = rsp {
+                addrs
+            } else {
+                continue;
+            };
+
             info!(addrs.len = addrs.len(), "got address response");
 
             let prev_count = all_addrs.peers().count();
@@ -139,15 +145,48 @@ impl ConnectCmd {
             );
         }
 
-        let addrs = all_addrs.drain_newest().collect::<Vec<_>>();
+        let peers = all_addrs.peers().map(|meta| meta.addr).collect::<Vec<_>>();
 
-        info!(addrs.len = addrs.len(), ab.len = all_addrs.peers().count());
-        let mut head = Vec::new();
-        head.extend_from_slice(&addrs[0..5]);
-        let mut tail = Vec::new();
-        tail.extend_from_slice(&addrs[addrs.len() - 5..]);
-        info!(addrs.first = ?head, addrs.last = ?tail);
+        warn!(peers.len = peers.len(), "beginning phase 2");
+        drop(peer_set);
 
+        config.initial_peers = peers;
+        let (mut peer_set, _address_book) = zebra_network::init(config, node);
+
+        info!("waiting for peer_set ready");
+        peer_set.ready().await.map_err(Error::from_boxed_compat)?;
+
+        info!("peer_set became ready, constructing addr requests");
+
+        let mut addr_reqs = FuturesUnordered::new();
+        for i in 0..20usize {
+            info!(i, "awaiting peer_set ready");
+            peer_set.ready().await.map_err(Error::from_boxed_compat)?;
+            info!(i, "calling peer_set");
+            addr_reqs.push(peer_set.call(Request::GetPeers));
+        }
+
+        let mut all_addrs = AddressBook::default();
+        while let Some(rsp) = addr_reqs.next().await {
+            let addrs = if let Ok(Response::Peers(addrs)) = rsp {
+                addrs
+            } else {
+                continue;
+            };
+
+            info!(addrs.len = addrs.len(), "got address response");
+
+            let prev_count = all_addrs.peers().count();
+            all_addrs.extend(addrs.into_iter());
+            let count = all_addrs.peers().count();
+            info!(
+                new_addrs = count - prev_count,
+                count, "added addrs to addressbook"
+            );
+        }
+
+        let peers = all_addrs.peers().map(|meta| meta.addr).collect::<Vec<_>>();
+        warn!(peers.len = peers.len(), "beginning phase 2");
         loop {
             // empty loop ensures we don't exit the application,
             // and this is throwaway code
