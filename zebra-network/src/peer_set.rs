@@ -112,6 +112,7 @@ async fn add_initial_peers<S>(
     S: Service<(TcpStream, SocketAddr), Response = PeerClient, Error = BoxedStdError> + Clone,
     S::Future: Send + 'static,
 {
+    use std::collections::VecDeque;
     info!(initial_peers.len = initial_peers.len(), "Connecting to initial peer set");
     let mut handshakes = initial_peers
         .into_iter()
@@ -124,14 +125,20 @@ async fn add_initial_peers<S>(
                 Ok::<_, BoxedStdError>(Change::Insert(addr, client))
             }
         })
+        .collect::<VecDeque<_>>();
+    let mut tasks = handshakes.drain(0..64)
         .collect::<FuturesUnordered<_>>();
-    while let Some(handshake_result) = handshakes.next().await {
+    while let Some(handshake_result) = tasks.next().await {
         if let Ok(Change::Insert(ref addr, _)) = handshake_result {
-            info!(?addr, "finished handshake with peer");
+            debug!(?addr, "finished handshake with peer");
+            let _ = tx.send(handshake_result).await;
         } else {
-            info!("failed to connect to peer");
+            debug!("failed to connect to peer");
         }
-        let _ = tx.send(handshake_result).await;
+        if let Some(t) = handshakes.pop_front() {
+            debug!("pushing new task");
+            tasks.push(t);
+        }
     }
 }
 
